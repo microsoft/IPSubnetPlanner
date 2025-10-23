@@ -1,0 +1,34 @@
+{
+  "network": "10.0.0.0/24",
+  "subnets": [
+    {
+      "name": "Management",
+      "vlan": 110,
+      "cidr": 28,
+      "IPAssignments": [
+        {
+          "Name": "Gateway",
+          "Position": 1
+        },
+        {
+          "Name": "DNS",
+          "Position": 2
+        },
+        {
+          "Name": "VMM",
+          "Position": 10
+        }
+      ]
+    },
+    {
+      "name": "Storage",
+      "vlan": 120,
+      "hosts": 50
+    },
+    {
+      "name": "Compute",
+      "vlan": 130,
+      "cidr": 26
+    }
+  ]
+}

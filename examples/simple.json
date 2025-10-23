@@ -1,0 +1,20 @@
+{
+  "network": "192.168.1.0/24",
+  "subnets": [
+    {
+      "name": "Management",
+      "vlan": 101,
+      "hosts": 30
+    },
+    {
+      "name": "Users",
+      "vlan": 102,
+      "hosts": 100
+    },
+    {
+      "name": "Servers",
+      "vlan": 103,
+      "cidr": 27
+    }
+  ]
+}

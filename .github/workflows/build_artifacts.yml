@@ -1,0 +1,54 @@
+name: Build Artifacts
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+        exclude:
+          # Exclude Windows ARM64 (less common)
+          - goos: windows
+            goarch: arm64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+
+    - name: Get dependencies
+      run: |
+        cd src
+        go mod download
+
+    - name: Build
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        cd src
+        mkdir -p ../dist
+        if [ "$GOOS" = "windows" ]; then
+          go build -v -o ../dist/ipsubnetplanner-${{ matrix.goos }}-${{ matrix.goarch }}.exe
+        else
+          go build -v -o ../dist/ipsubnetplanner-${{ matrix.goos }}-${{ matrix.goarch }}
+        fi
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ipsubnetplanner-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: dist/*
+        retention-days: 30

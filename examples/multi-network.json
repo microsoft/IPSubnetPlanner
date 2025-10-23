@@ -1,0 +1,32 @@
+[
+  {
+    "network": "192.168.1.0/24",
+    "subnets": [
+      {
+        "name": "Compute-VLAN203",
+        "vlan": 203,
+        "cidr": 28
+      },
+      {
+        "name": "Compute-VLAN102",
+        "vlan": 102,
+        "cidr": 27
+      }
+    ]
+  },
+  {
+    "network": "10.50.1.0/24",
+    "subnets": [
+      {
+        "name": "Management-VLAN101",
+        "vlan": 101,
+        "cidr": 27
+      },
+      {
+        "name": "Management-VLAN201",
+        "vlan": 201,
+        "cidr": 27
+      }
+    ]
+  }
+]

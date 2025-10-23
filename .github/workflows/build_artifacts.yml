@@ -1,4 +1,6 @@
 name: Build Artifacts
+permissions:
+  contents: read
 
 on:
   push:

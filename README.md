@@ -13,22 +13,90 @@ Fast, zero‑friction IP subnet planning from a simple JSON file. No spreadsheet
 * Optimal packing (largest first) + remaining space summary
 * Optional VLAN IDs & named IP assignments
 * Multi‑network (array) input
-* Export JSON / CSV / Markdown
+* Markdown export by default (plan.md)
+* Opt-in JSON / CSV (only if you supply filenames)
 
 ## Quick Start (Download & Run)
 1. Go to Releases: https://github.com/microsoft/IPSubnetPlanner/releases
 2. Download the latest binary for your OS (Windows / Linux / macOS)
 3. (Linux/macOS) Make it executable: `chmod +x ipsubnetplanner*`
-4. Run with the provided example:
+4. Run with the provided example (prints table + writes plan.md):
   ```bash
-  ./ipsubnetplanner plan -f examples/simple.json
+  ./ipsubnetplanner -f examples/simple.json
   ```
-5. (Optional) Export:
+5. (Optional) Opt-in exports (you must give filenames for JSON / CSV):
   ```bash
-  ./ipsubnetplanner plan -f examples/simple.json -json plan.json -csv plan.csv -md plan.md
+  ./ipsubnetplanner -f examples/simple.json -json plan.json -csv plan.csv -md report.md
   ```
 
 Need to customize? Create your own JSON (see use cases below).
+
+## Architecture Overview
+
+### High-Level Flow
+
+```mermaid
+flowchart TD
+    A[User runs ipsubnetplanner] --> B{Input Method}
+    B -->|JSON file| C[Load config.json]
+    B -->|Command line| D[Parse -network -hosts -cidr flags]
+    C --> E[Network Definitions]
+    D --> E
+    E --> F[Planning Engine]
+    F --> G[Subnet Results]
+    G --> H[Console Output]
+    G --> I[File Exports]
+    
+    style H fill:#d4edff,stroke:#0078d4
+    style I fill:#fff4ce,stroke:#ffd700
+```
+
+### Planning Engine Details
+
+```mermaid
+flowchart TD
+    Start[Network + Subnet Requirements] --> Sort[Sort subnets by size largest first]
+    Sort --> Prefix[Calculate minimal prefix for each]
+    Prefix --> Allocate[Allocate sequential IP blocks]
+    Allocate --> Compute[Compute network/broadcast/host ranges]
+    Compute --> VLAN[Apply VLAN assignments]
+    VLAN --> Remaining[Calculate remaining space]
+    Remaining --> Result[Subnet Results]
+    
+    style Start fill:#e8f4ff,stroke:#4a90e2
+    style Result fill:#e0ffe8,stroke:#55aa55
+```
+
+### Export Behavior
+
+```mermaid
+flowchart LR
+    Results[Subnet Results] --> Console[Console Table]
+    Results --> MD{Markdown}
+    Results --> JSON{JSON}
+    Results --> CSV{CSV}
+    
+    MD -->|Always default| MD1[plan.md ✓]
+    MD -->|Can disable with -md=""| MD2[Skipped]
+    
+    JSON -->|Disabled by default| JSON1[No file]
+    JSON -->|Enable with -json filename| JSON2[custom.json ✓]
+    
+    CSV -->|Disabled by default| CSV1[No file]
+    CSV -->|Enable with -csv filename| CSV2[custom.csv ✓]
+    
+    style MD1 fill:#e0ffe8,stroke:#55aa55
+    style JSON2 fill:#e8f4ff,stroke:#4a90e2
+    style CSV2 fill:#fff4e0,stroke:#e28b2c
+    style Console fill:#d4edff,stroke:#0078d4
+```
+
+**Key Points:**
+* **Input flexibility**: JSON file or inline CLI flags (`-network`, `-hosts`, `-cidr`)
+* **Smart allocation**: Largest subnets first to minimize fragmentation
+* **Default export**: Markdown always created unless explicitly disabled
+* **Opt-in exports**: JSON/CSV only generated when you specify filenames
+
 
 ---
 ## Top 3 Use Cases
@@ -45,9 +113,9 @@ Need to customize? Create your own JSON (see use cases below).
   ]
 }
 ```
-Run:
+Run (table + plan.md):
 ```bash
-./ipsubnetplanner plan -f single.json
+./ipsubnetplanner -f single.json
 ```
 Sample Output:
 ```
@@ -80,9 +148,9 @@ Available          192.168.1.192/26   26      192.168.1.193   192.168.1.254   62
   ]
 }
 ```
-Export variants:
+Opt-in exports:
 ```bash
-./ipsubnetplanner plan -f advanced.json -json plan.json -csv plan.csv -md plan.md
+./ipsubnetplanner -f advanced.json -json plan.json -csv plan.csv -md plan.md
 ```
 Excerpt (Markdown):
 ```
@@ -113,7 +181,7 @@ Excerpt (Markdown):
 ```
 Run:
 ```bash
-./ipsubnetplanner plan -f multi.json
+./ipsubnetplanner -f multi.json
 ```
 
 ---
@@ -143,9 +211,13 @@ Rules:
 
 ## Commands
 ```bash
-ipsubnetplanner plan -f config.json
-ipsubnetplanner plan -f config.json -json out.json -csv out.csv -md out.md
-ipsubnetplanner help
+ipsubnetplanner -f config.json                # table + plan.md
+ipsubnetplanner -f config.json -md design.md  # override markdown filename
+ipsubnetplanner -f config.json -md=""         # disable markdown export
+ipsubnetplanner -f config.json -json out.json # enable JSON export
+ipsubnetplanner -f config.json -csv out.csv   # enable CSV export
+ipsubnetplanner -f config.json -json out.json -csv out.csv -md report.md
+ipsubnetplanner -version
 ```
 
 ## Build From Source

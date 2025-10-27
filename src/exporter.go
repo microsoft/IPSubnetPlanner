@@ -87,24 +87,86 @@ func ExportMarkdown(results []SubnetResult, filepath string) error {
 
 // PrintTable prints results as a formatted table to console
 func PrintTable(results []SubnetResult) {
-	// Print header
-	fmt.Printf("%-20s %-6s %-18s %-6s %-15s %-15s %-15s %-15s %-12s %-10s\n",
-		"Name", "VLAN", "Subnet", "Prefix", "Network", "Broadcast", "FirstHost", "LastHost", "UsableHosts", "TotalIPs")
-	fmt.Println(strings.Repeat("-", 150))
+	// Collect headers and determine dynamic column widths based on data
+	headers := []string{"Name", "VLAN", "Subnet", "Prefix", "Network", "Broadcast", "FirstHost", "LastHost", "UsableHosts", "TotalIPs"}
+	colWidths := make([]int, len(headers))
 
-	// Print data
-	for _, result := range results {
-		fmt.Printf("%-20s %-6d %-18s %-6d %-15s %-15s %-15s %-15s %-12d %-10d\n",
-			result.Name,
-			result.VLAN,
-			result.Subnet,
-			result.Prefix,
-			result.Network,
-			result.Broadcast,
-			result.FirstHost,
-			result.LastHost,
-			result.UsableHosts,
-			result.TotalIPs,
-		)
+	// Initialize with header lengths
+	for i, h := range headers {
+		colWidths[i] = len(h)
+	}
+
+	// Grow widths based on data content
+	for _, r := range results {
+		values := []string{
+			r.Name,
+			fmt.Sprintf("%d", r.VLAN),
+			r.Subnet,
+			fmt.Sprintf("%d", r.Prefix),
+			r.Network,
+			r.Broadcast,
+			r.FirstHost,
+			r.LastHost,
+			fmt.Sprintf("%d", r.UsableHosts),
+			fmt.Sprintf("%d", r.TotalIPs),
+		}
+		for i, v := range values {
+			if l := len(v); l > colWidths[i] {
+				colWidths[i] = l
+			}
+		}
+	}
+
+	// Add minimal padding to each column for readability
+	for i := range colWidths {
+		colWidths[i] += 2 // 1 space left, 1 space right visual buffer
+	}
+
+	// Helper to build format string per row dynamically
+	buildFormat := func() string {
+		parts := make([]string, len(colWidths))
+		for i := range colWidths {
+			// Use - to left align. All fields treated as strings when printing generic rows.
+			parts[i] = fmt.Sprintf("%%-%ds", colWidths[i])
+		}
+		return strings.Join(parts, "") + "\n"
+	}
+
+	rowFormat := buildFormat()
+
+	// Print header row
+	rowVals := make([]interface{}, len(headers))
+	for i, h := range headers {
+		rowVals[i] = h
+	}
+	fmt.Printf(rowFormat, rowVals...)
+
+	// Print separator line
+	var sepBuilder strings.Builder
+	for i, w := range colWidths {
+		// Use width of column minus 1 because of padding spaces; ensure at least header length coverage
+		dashes := w
+		if dashes < len(headers[i]) { // safety, though shouldn't happen
+			dashes = len(headers[i])
+		}
+		sepBuilder.WriteString(strings.Repeat("-", dashes))
+	}
+	fmt.Println(sepBuilder.String())
+
+	// Print data rows
+	for _, r := range results {
+		vals := []interface{}{
+			r.Name,
+			fmt.Sprintf("%d", r.VLAN),
+			r.Subnet,
+			fmt.Sprintf("%d", r.Prefix),
+			r.Network,
+			r.Broadcast,
+			r.FirstHost,
+			r.LastHost,
+			fmt.Sprintf("%d", r.UsableHosts),
+			fmt.Sprintf("%d", r.TotalIPs),
+		}
+		fmt.Printf(rowFormat, vals...)
 	}
 }

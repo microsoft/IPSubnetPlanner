@@ -32,7 +32,17 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.21'
+        go-version: '1.22'
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
 
     - name: Get dependencies
       run: |
@@ -46,15 +56,16 @@ jobs:
       run: |
         cd src
         mkdir -p ../dist
+        outName=ipsubnetplanner-${{ matrix.goos }}-${{ matrix.goarch }}
         if [ "$GOOS" = "windows" ]; then
-          go build -v -o ../dist/ipsubnetplanner-${{ matrix.goos }}-${{ matrix.goarch }}.exe
-        else
-          go build -v -o ../dist/ipsubnetplanner-${{ matrix.goos }}-${{ matrix.goarch }}
+          outName="$outName.exe"
         fi
+        go build -trimpath -ldflags="-s -w" -v -o ../dist/$outName
+        echo "Built $outName"
 
-    - name: Upload artifacts
+    - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: ipsubnetplanner-${{ matrix.goos }}-${{ matrix.goarch }}
-        path: dist/*
+        path: dist/ipsubnetplanner-${{ matrix.goos }}-${{ matrix.goarch }}*
         retention-days: 30

@@ -1,32 +1,96 @@
 [
   {
-    "network": "192.168.1.0/24",
+    "network": "10.1.0.0/24",
     "subnets": [
       {
-        "name": "Compute-VLAN203",
-        "vlan": 203,
-        "cidr": 28
+        "name": "Production-Web",
+        "vlan": 100,
+        "cidr": 26,
+        "IPAssignments": [
+          { "Name": "Gateway", "Position": 1 },
+          { "Name": "LoadBalancer", "Position": 2 },
+          { "Name": "Web-Server-1", "Position": 10 },
+          { "Name": "Web-Server-2", "Position": 11 },
+          { "Name": "Web-Server-3", "Position": 12 }
+        ]
       },
       {
-        "name": "Compute-VLAN102",
+        "name": "Production-App",
+        "vlan": 101,
+        "cidr": 26,
+        "IPAssignments": [
+          { "Name": "Gateway", "Position": 1 },
+          { "Name": "App-Server-1", "Position": 10 },
+          { "Name": "App-Server-2", "Position": 11 }
+        ]
+      },
+      {
+        "name": "Production-DB",
         "vlan": 102,
+        "cidr": 27,
+        "IPAssignments": [
+          { "Name": "Gateway", "Position": 1 },
+          { "Name": "DB-Primary", "Position": 10 },
+          { "Name": "DB-Replica", "Position": 11 }
+        ]
+      }
+    ]
+  },
+  {
+    "network": "10.2.0.0/24",
+    "subnets": [
+      {
+        "name": "Management-Network",
+        "vlan": 200,
+        "cidr": 26,
+        "IPAssignments": [
+          { "Name": "Gateway", "Position": 1 },
+          { "Name": "Monitoring", "Position": 5 },
+          { "Name": "Backup-Server", "Position": 6 },
+          { "Name": "Jump-Host", "Position": 7 }
+        ]
+      },
+      {
+        "name": "Storage-Network",
+        "vlan": 201,
+        "hosts": 50
+      }
+    ]
+  },
+  {
+    "network": "10.3.0.0/24",
+    "subnets": [
+      {
+        "name": "Dev-Environment",
+        "vlan": 300,
+        "hosts": 100
+      },
+      {
+        "name": "Test-Environment",
+        "vlan": 301,
+        "hosts": 50
+      },
+      {
+        "name": "CI-CD",
+        "vlan": 302,
         "cidr": 27
       }
     ]
   },
   {
-    "network": "10.50.1.0/24",
+    "network": "192.168.100.0/24",
     "subnets": [
       {
-        "name": "Management-VLAN101",
-        "vlan": 101,
-        "cidr": 27
+        "name": "Guest-WiFi",
+        "vlan": 400,
+        "hosts": 200
       },
       {
-        "name": "Management-VLAN201",
-        "vlan": 201,
-        "cidr": 27
+        "name": "IoT-Devices",
+        "vlan": 401,
+        "cidr": 28
       }
     ]
   }
 ]
+

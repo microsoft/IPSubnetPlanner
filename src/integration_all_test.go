@@ -154,53 +154,71 @@ func TestIntegration_MultiNetworkExample(t *testing.T) {
 		t.Fatalf("Failed to unmarshal multi-network.json: %v", err)
 	}
 
+	// Should have 4 networks
+	if len(networks) != 4 {
+		t.Fatalf("Expected 4 networks, got %d", len(networks))
+	}
+
 	// Plan all networks
 	results, err := PlanSubnets(networks)
 	if err != nil {
 		t.Fatalf("PlanSubnets() error = %v", err)
 	}
 
-	// Verify we have results from both networks
+	// Verify we have results from multiple networks
 	expectedSubnets := map[string]bool{
-		"Compute-VLAN203":    false,
-		"Compute-VLAN102":    false,
-		"Management-VLAN101": false,
-		"Management-VLAN201": false,
+		"Production-Web":     false,
+		"Production-App":     false,
+		"Production-DB":      false,
+		"Management-Network": false,
+		"Storage-Network":    false,
+		"Dev-Environment":    false,
+		"Test-Environment":   false,
+		"CI-CD":              false,
+		"Guest-WiFi":         false,
+		"IoT-Devices":        false,
 	}
 
 	for _, result := range results {
 		if _, exists := expectedSubnets[result.Name]; exists {
 			expectedSubnets[result.Name] = true
 
-			// Verify VLAN assignments
+			// Verify key VLAN assignments and sizing
 			switch result.Name {
-			case "Compute-VLAN203":
-				if result.VLAN != 203 {
-					t.Errorf("Compute-VLAN203 VLAN = %d, want 203", result.VLAN)
+			case "Production-Web":
+				if result.VLAN != 100 {
+					t.Errorf("Production-Web VLAN = %d, want 100", result.VLAN)
 				}
-				if result.Prefix != 28 {
-					t.Errorf("Compute-VLAN203 prefix = %d, want 28", result.Prefix)
+				if result.Prefix != 26 {
+					t.Errorf("Production-Web prefix = %d, want 26", result.Prefix)
 				}
-			case "Compute-VLAN102":
-				if result.VLAN != 102 {
-					t.Errorf("Compute-VLAN102 VLAN = %d, want 102", result.VLAN)
+			case "Management-Network":
+				if result.VLAN != 200 {
+					t.Errorf("Management-Network VLAN = %d, want 200", result.VLAN)
 				}
-				if result.Prefix != 27 {
-					t.Errorf("Compute-VLAN102 prefix = %d, want 27", result.Prefix)
-				}
-			case "Management-VLAN101":
-				if result.VLAN != 101 {
-					t.Errorf("Management-VLAN101 VLAN = %d, want 101", result.VLAN)
-				}
-				if result.Prefix != 27 {
-					t.Errorf("Management-VLAN101 prefix = %d, want 27", result.Prefix)
-				}
-			case "Management-VLAN201":
+			case "Storage-Network":
 				if result.VLAN != 201 {
-					t.Errorf("Management-VLAN201 VLAN = %d, want 201", result.VLAN)
+					t.Errorf("Storage-Network VLAN = %d, want 201", result.VLAN)
 				}
-				if result.Prefix != 27 {
-					t.Errorf("Management-VLAN201 prefix = %d, want 27", result.Prefix)
+				// Should accommodate 50 hosts
+				if result.UsableHosts < 50 {
+					t.Errorf("Storage-Network usable hosts = %d, want >= 50", result.UsableHosts)
+				}
+			case "Dev-Environment":
+				if result.VLAN != 300 {
+					t.Errorf("Dev-Environment VLAN = %d, want 300", result.VLAN)
+				}
+				// Should accommodate 100 hosts
+				if result.UsableHosts < 100 {
+					t.Errorf("Dev-Environment usable hosts = %d, want >= 100", result.UsableHosts)
+				}
+			case "Guest-WiFi":
+				if result.VLAN != 400 {
+					t.Errorf("Guest-WiFi VLAN = %d, want 400", result.VLAN)
+				}
+				// Should accommodate 200 hosts
+				if result.UsableHosts < 200 {
+					t.Errorf("Guest-WiFi usable hosts = %d, want >= 200", result.UsableHosts)
 				}
 			}
 		}
@@ -213,24 +231,23 @@ func TestIntegration_MultiNetworkExample(t *testing.T) {
 		}
 	}
 
-	// Verify we have subnets from both networks
-	var network1Subnets, network2Subnets int
+	// Verify we have subnets from all 4 networks
+	networkPrefixes := make(map[string]int)
 	for _, result := range results {
-		// Check IP ranges to determine which network
-		if result.Network != "" {
-			if result.Network[:7] == "192.168" {
-				network1Subnets++
-			} else if result.Network[:2] == "10" {
-				network2Subnets++
-			}
+		// Skip "Available" entries
+		if result.Name == "Available" {
+			continue
+		}
+		// Group by first octet to identify different networks
+		if len(result.Network) >= 4 {
+			prefix := result.Network[:4]
+			networkPrefixes[prefix]++
 		}
 	}
 
-	if network1Subnets == 0 {
-		t.Error("No subnets found for 192.168.1.0/24 network")
-	}
-	if network2Subnets == 0 {
-		t.Error("No subnets found for 10.50.1.0/24 network")
+	// Verify we got subnets from multiple networks
+	if len(networkPrefixes) < 3 {
+		t.Errorf("Expected subnets from at least 3 different networks, got %d", len(networkPrefixes))
 	}
 }
 

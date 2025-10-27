@@ -25,9 +25,13 @@ func PlanSubnets(networks []Network) ([]SubnetResult, error) {
 
 func planSingleNetwork(network Network) ([]SubnetResult, error) {
 	// Parse parent network
+	if network.Network == "" {
+		return nil, fmt.Errorf("missing 'network' field - each network must specify a CIDR (e.g., \"network\": \"10.0.0.0/24\")")
+	}
+
 	_, ipNet, err := net.ParseCIDR(network.Network)
 	if err != nil {
-		return nil, fmt.Errorf("invalid network CIDR: %v", err)
+		return nil, fmt.Errorf("invalid network CIDR '%s': %v", network.Network, err)
 	}
 
 	parentPrefix, _ := ipNet.Mask.Size()

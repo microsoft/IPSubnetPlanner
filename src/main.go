@@ -108,7 +108,17 @@ func main() {
 		} else {
 			var single Network
 			if err := json.Unmarshal(data, &single); err != nil {
-				fatal(fmt.Sprintf("error parsing config file: %v", err))
+				// Provide helpful error message
+				errMsg := fmt.Sprintf("error parsing config file: %v\n\n", err)
+				errMsg += "Common issues:\n"
+				errMsg += "  1. Check that 'vlan' and 'cidr' values are integers (not strings)\n"
+				errMsg += "     ✗ Bad:  \"vlan\": \"100\", \"cidr\": \"26\"\n"
+				errMsg += "     ✓ Good: \"vlan\": 100, \"cidr\": 26\n\n"
+				errMsg += "  2. Verify JSON structure:\n"
+				errMsg += "     Single network: {\"network\": \"...\", \"subnets\": [...]}\n"
+				errMsg += "     Multi-network:  [{\"network\": \"...\", \"subnets\": [...]}, ...]\n\n"
+				errMsg += "See examples/ directory for reference."
+				fatal(errMsg)
 			}
 			networks = []Network{single}
 		}

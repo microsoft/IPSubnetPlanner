@@ -160,28 +160,36 @@ Excerpt (Markdown):
 ```
 
 ### 3. Multi‑Network Planning
-`multi.json`
+`multi-network.json`
 ```json
 [
   {
-    "network": "192.168.10.0/24",
+    "network": "10.1.0.0/24",
     "subnets": [
-      { "name": "Edge", "cidr": 27 },
-      { "name": "Users", "hosts": 90 }
+      { "name": "Production-Web", "vlan": 100, "cidr": 26 },
+      { "name": "Production-App", "vlan": 101, "cidr": 26 },
+      { "name": "Production-DB", "vlan": 102, "cidr": 27 }
     ]
   },
   {
-    "network": "10.50.1.0/24",
+    "network": "10.2.0.0/24",
     "subnets": [
-      { "name": "Mgmt", "cidr": 27 },
-      { "name": "Compute", "cidr": 26 }
+      { "name": "Management-Network", "vlan": 200, "cidr": 26 },
+      { "name": "Storage-Network", "vlan": 201, "hosts": 50 }
+    ]
+  },
+  {
+    "network": "10.3.0.0/24",
+    "subnets": [
+      { "name": "Dev-Environment", "vlan": 300, "hosts": 100 },
+      { "name": "Test-Environment", "vlan": 301, "hosts": 50 }
     ]
   }
 ]
 ```
 Run:
 ```bash
-./ipsubnetplanner -f multi.json
+./ipsubnetplanner -f multi-network.json
 ```
 
 ---

@@ -38,8 +38,8 @@ Need to customize? Create your own JSON (see use cases below).
 ```mermaid
 flowchart TD
     A[User runs ipsubnetplanner] --> B{Input Method}
-    B -->|JSON file| C[Load config.json]
-    B -->|Command line| D[Parse -network -hosts -cidr flags]
+    B -->|JSON file| C[-f config.json]
+    B -->|CLI flags| D[-network -hosts -cidr]
     C --> E[Network Definitions]
     D --> E
     E --> F[Planning Engine]
@@ -55,12 +55,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start[Network + Subnet Requirements] --> Sort[Sort subnets by size largest first]
-    Sort --> Prefix[Calculate minimal prefix for each]
-    Prefix --> Allocate[Allocate sequential IP blocks]
-    Allocate --> Compute[Compute network/broadcast/host ranges]
-    Compute --> VLAN[Apply VLAN assignments]
-    VLAN --> Remaining[Calculate remaining space]
+    Start[Network + Subnets] --> Sort[Sort by size<br/>largest first]
+    Sort --> Prefix[Calculate<br/>minimal prefix]
+    Prefix --> Allocate[Allocate<br/>IP blocks]
+    Allocate --> Compute[Compute ranges<br/>network/broadcast/hosts]
+    Compute --> VLAN[Apply VLAN<br/>assignments]
+    VLAN --> Remaining[Calculate<br/>remaining space]
     Remaining --> Result[Subnet Results]
     
     style Start fill:#e8f4ff,stroke:#4a90e2
@@ -76,14 +76,14 @@ flowchart LR
     Results --> JSON{JSON}
     Results --> CSV{CSV}
     
-    MD -->|Always default| MD1[plan.md ✓]
-    MD -->|Can disable with -md=""| MD2[Skipped]
+    MD -->|Always on| MD1[plan.md ✓]
+    MD -->|Can disable<br/>-md=""| MD2[Skipped]
     
-    JSON -->|Disabled by default| JSON1[No file]
-    JSON -->|Enable with -json filename| JSON2[custom.json ✓]
+    JSON -->|Off by default| JSON1[No file]
+    JSON -->|Opt-in<br/>-json file.json| JSON2[file.json ✓]
     
-    CSV -->|Disabled by default| CSV1[No file]
-    CSV -->|Enable with -csv filename| CSV2[custom.csv ✓]
+    CSV -->|Off by default| CSV1[No file]
+    CSV -->|Opt-in<br/>-csv file.csv| CSV2[file.csv ✓]
     
     style MD1 fill:#e0ffe8,stroke:#55aa55
     style JSON2 fill:#e8f4ff,stroke:#4a90e2

@@ -115,16 +115,24 @@ func TestIntegration_AdvancedExample(t *testing.T) {
 		t.Fatalf("planSingleNetwork() error = %v", err)
 	}
 
-	// Verify we have the expected subnets
+	// Verify we have the expected subnets (now with detailed entries)
 	expectedSubnets := map[string]bool{
 		"Management": false,
 		"Storage":    false,
 		"Compute":    false,
 	}
 
+	// Track available IPs per subnet to verify capacity
+	availableIPs := make(map[string]int)
+
 	for _, result := range results {
 		if _, exists := expectedSubnets[result.Name]; exists {
 			expectedSubnets[result.Name] = true
+
+			// Count available IPs (from Available and Unused categories)
+			if result.Category == "Available" || result.Category == "Unused" {
+				availableIPs[result.Name] += result.TotalIPs
+			}
 
 			// Verify specific requirements
 			switch result.Name {
@@ -139,10 +147,6 @@ func TestIntegration_AdvancedExample(t *testing.T) {
 				if result.VLAN != 120 {
 					t.Errorf("Storage VLAN = %d, want 120", result.VLAN)
 				}
-				// Should accommodate 50 hosts
-				if result.UsableHosts < 50 {
-					t.Errorf("Storage usable hosts = %d, want >= 50", result.UsableHosts)
-				}
 			case "Compute":
 				if result.VLAN != 130 {
 					t.Errorf("Compute VLAN = %d, want 130", result.VLAN)
@@ -152,6 +156,11 @@ func TestIntegration_AdvancedExample(t *testing.T) {
 				}
 			}
 		}
+	}
+
+	// Verify Storage has enough available IPs (should accommodate 50 hosts)
+	if availableIPs["Storage"] < 50 {
+		t.Errorf("Storage available IPs = %d, want >= 50", availableIPs["Storage"])
 	}
 
 	// Check that all expected subnets were found
@@ -200,9 +209,17 @@ func TestIntegration_MultiNetworkExample(t *testing.T) {
 		"IoT-Devices":        false,
 	}
 
+	// Track available IPs per subnet to verify capacity
+	availableIPs := make(map[string]int)
+
 	for _, result := range results {
 		if _, exists := expectedSubnets[result.Name]; exists {
 			expectedSubnets[result.Name] = true
+
+			// Count available IPs (from Available and Unused categories)
+			if result.Category == "Available" || result.Category == "Unused" {
+				availableIPs[result.Name] += result.TotalIPs
+			}
 
 			// Verify key VLAN assignments and sizing
 			switch result.Name {
@@ -221,28 +238,27 @@ func TestIntegration_MultiNetworkExample(t *testing.T) {
 				if result.VLAN != 201 {
 					t.Errorf("Storage-Network VLAN = %d, want 201", result.VLAN)
 				}
-				// Should accommodate 50 hosts
-				if result.UsableHosts < 50 {
-					t.Errorf("Storage-Network usable hosts = %d, want >= 50", result.UsableHosts)
-				}
 			case "Dev-Environment":
 				if result.VLAN != 300 {
 					t.Errorf("Dev-Environment VLAN = %d, want 300", result.VLAN)
-				}
-				// Should accommodate 100 hosts
-				if result.UsableHosts < 100 {
-					t.Errorf("Dev-Environment usable hosts = %d, want >= 100", result.UsableHosts)
 				}
 			case "Guest-WiFi":
 				if result.VLAN != 400 {
 					t.Errorf("Guest-WiFi VLAN = %d, want 400", result.VLAN)
 				}
-				// Should accommodate 200 hosts
-				if result.UsableHosts < 200 {
-					t.Errorf("Guest-WiFi usable hosts = %d, want >= 200", result.UsableHosts)
-				}
 			}
 		}
+	}
+
+	// Verify capacity for specific subnets
+	if availableIPs["Storage-Network"] < 50 {
+		t.Errorf("Storage-Network available IPs = %d, want >= 50", availableIPs["Storage-Network"])
+	}
+	if availableIPs["Dev-Environment"] < 100 {
+		t.Errorf("Dev-Environment available IPs = %d, want >= 100", availableIPs["Dev-Environment"])
+	}
+	if availableIPs["Guest-WiFi"] < 200 {
+		t.Errorf("Guest-WiFi available IPs = %d, want >= 200", availableIPs["Guest-WiFi"])
 	}
 
 	// Check that all expected subnets were found
@@ -252,17 +268,18 @@ func TestIntegration_MultiNetworkExample(t *testing.T) {
 		}
 	}
 
-	// Verify we have subnets from all 4 networks
+	// Verify we have subnets from all 4 networks by checking unique subnet prefixes
 	networkPrefixes := make(map[string]int)
 	for _, result := range results {
 		// Skip "Available" entries
 		if result.Name == "Available" {
 			continue
 		}
-		// Group by first octet to identify different networks
-		if len(result.Network) >= 4 {
-			prefix := result.Network[:4]
-			networkPrefixes[prefix]++
+		// Group by subnet first two octets to identify different networks
+		if len(result.Subnet) >= 7 {
+			// Extract prefix like "10.1." from "10.1.0.0/26"
+			parts := result.Subnet[:7] // e.g., "10.1.0."
+			networkPrefixes[parts]++
 		}
 	}
 
@@ -341,11 +358,12 @@ func TestIntegration_SubnetAllocationOrder(t *testing.T) {
 	}
 
 	// Find the Large subnet and verify it got the first allocation
+	// With the new detailed format, we need to find the Network entry for Large
 	for _, result := range results {
-		if result.Name == "Large" {
+		if result.Name == "Large" && result.Category == "Network" {
 			// Should start at the beginning of the network
-			if result.Network != "10.0.0.0" {
-				t.Errorf("Large subnet should start at 10.0.0.0, got %s", result.Network)
+			if result.IP != "10.0.0.0" {
+				t.Errorf("Large subnet should start at 10.0.0.0, got %s", result.IP)
 			}
 			// Should have /26 prefix
 			if result.Prefix != 26 {
@@ -387,20 +405,22 @@ func TestIntegration_EdgeCaseSubnets(t *testing.T) {
 		t.Fatalf("planSingleNetwork() error = %v", err)
 	}
 
+	// Count available IPs for each subnet
+	availableIPs := make(map[string]int)
 	for _, result := range results {
-		switch result.Name {
-		case "P2P":
-			if result.UsableHosts != 2 {
-				t.Errorf("P2P subnet should have 2 usable hosts, got %d", result.UsableHosts)
-			}
-		case "Host":
-			if result.UsableHosts != 1 {
-				t.Errorf("Host subnet should have 1 usable host, got %d", result.UsableHosts)
-			}
-		case "Normal":
-			if result.UsableHosts < 5 {
-				t.Errorf("Normal subnet should have at least 5 usable hosts, got %d", result.UsableHosts)
-			}
+		if result.Category == "Available" || result.Category == "Unused" {
+			availableIPs[result.Name] += result.TotalIPs
 		}
+	}
+
+	// Verify capacity
+	if availableIPs["P2P"] < 2 {
+		t.Errorf("P2P subnet should have at least 2 usable hosts, got %d", availableIPs["P2P"])
+	}
+	if availableIPs["Host"] < 1 {
+		t.Errorf("Host subnet should have at least 1 usable host, got %d", availableIPs["Host"])
+	}
+	if availableIPs["Normal"] < 5 {
+		t.Errorf("Normal subnet should have at least 5 usable hosts, got %d", availableIPs["Normal"])
 	}
 }

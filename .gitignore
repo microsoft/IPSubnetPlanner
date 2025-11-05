@@ -1,22 +1,26 @@
 # Binaries
 ipsubnetplanner
-ipsubnetplanner.exe
 *.exe
 *.dll
 *.so
 *.dylib
 
-# Test binaries
+# Test binaries and temporary files
 *.test
+**/_test*
 
-# Output
+# Output files
 dist/
 build/
 output/
 *.json
 *.csv
 *.md
-!examples/*.json
+
+# Whitelist essential files
+!examples/simple.json
+!examples/advanced.json
+!examples/multi-network*.json
 !README.md
 !docs/*.md
 

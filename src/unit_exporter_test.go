@@ -66,28 +66,26 @@ func TestExportCSV(t *testing.T) {
 	// Create test data
 	testResults := []SubnetResult{
 		{
-			Name:        "Subnet1",
-			VLAN:        100,
-			Subnet:      "192.168.1.0/28",
-			Prefix:      28,
-			Network:     "192.168.1.0",
-			Broadcast:   "192.168.1.15",
-			FirstHost:   "192.168.1.1",
-			LastHost:    "192.168.1.14",
-			UsableHosts: 14,
-			TotalIPs:    16,
+			Subnet:   "192.168.1.0/28",
+			Name:     "Subnet1",
+			VLAN:     100,
+			Label:    "Network",
+			IP:       "192.168.1.0",
+			TotalIPs: 1,
+			Prefix:   28,
+			Mask:     "255.255.255.240",
+			Category: "Network",
 		},
 		{
-			Name:        "Subnet2",
-			VLAN:        101,
-			Subnet:      "192.168.1.16/28",
-			Prefix:      28,
-			Network:     "192.168.1.16",
-			Broadcast:   "192.168.1.31",
-			FirstHost:   "192.168.1.17",
-			LastHost:    "192.168.1.30",
-			UsableHosts: 14,
-			TotalIPs:    16,
+			Subnet:   "192.168.1.0/28",
+			Name:     "Subnet1",
+			VLAN:     100,
+			Label:    "Gateway",
+			IP:       "192.168.1.1",
+			TotalIPs: 1,
+			Prefix:   28,
+			Mask:     "255.255.255.240",
+			Category: "Assignment",
 		},
 	}
 
@@ -125,17 +123,17 @@ func TestExportCSV(t *testing.T) {
 	}
 
 	// Check header
-	expectedHeader := []string{"Name", "VLAN", "Subnet", "Prefix", "Network", "Broadcast", "FirstHost", "LastHost", "UsableHosts", "TotalIPs"}
+	expectedHeader := []string{"Subnet", "Name", "Vlan", "Label", "IP", "TotalIPs", "Prefix", "Mask", "Category"}
 	if len(records[0]) != len(expectedHeader) {
 		t.Errorf("Expected %d header columns, got %d", len(expectedHeader), len(records[0]))
 	}
 
 	// Check first data row
-	if records[1][0] != "Subnet1" {
-		t.Errorf("Expected first record name 'Subnet1', got '%s'", records[1][0])
+	if records[1][0] != "192.168.1.0/28" {
+		t.Errorf("Expected first record subnet '192.168.1.0/28', got '%s'", records[1][0])
 	}
-	if records[1][2] != "192.168.1.0/28" {
-		t.Errorf("Expected first record subnet '192.168.1.0/28', got '%s'", records[1][2])
+	if records[1][1] != "Subnet1" {
+		t.Errorf("Expected first record name 'Subnet1', got '%s'", records[1][1])
 	}
 }
 

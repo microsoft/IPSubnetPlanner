@@ -27,50 +27,71 @@ func TestIntegration_SimpleExample(t *testing.T) {
 	}
 
 	// Verify we have the expected subnets
-	expectedSubnets := map[string]bool{
-		"Management": false,
-		"Users":      false,
-		"Servers":    false,
+	// Group results by subnet name and category to handle the detailed output format
+	subnetMap := make(map[string]map[string]SubnetResult)
+	for _, result := range results {
+		if result.Name == "Available" && result.VLAN == 0 {
+			continue // Skip the overall available space entry
+		}
+		if subnetMap[result.Name] == nil {
+			subnetMap[result.Name] = make(map[string]SubnetResult)
+		}
+		subnetMap[result.Name][result.Category] = result
 	}
 
-	for _, result := range results {
-		if _, exists := expectedSubnets[result.Name]; exists {
-			expectedSubnets[result.Name] = true
+	expectedSubnets := []string{"Management", "Users", "Servers"}
+	for _, expectedName := range expectedSubnets {
+		categories, exists := subnetMap[expectedName]
+		if !exists {
+			t.Errorf("Expected subnet %s not found in results", expectedName)
+			continue
+		}
 
-			// Verify VLAN assignments
-			switch result.Name {
-			case "Management":
-				if result.VLAN != 101 {
-					t.Errorf("Management VLAN = %d, want 101", result.VLAN)
-				}
-				// Should accommodate 30 hosts
-				if result.UsableHosts < 30 {
-					t.Errorf("Management usable hosts = %d, want >= 30", result.UsableHosts)
-				}
-			case "Users":
-				if result.VLAN != 102 {
-					t.Errorf("Users VLAN = %d, want 102", result.VLAN)
-				}
-				// Should accommodate 100 hosts
-				if result.UsableHosts < 100 {
-					t.Errorf("Users usable hosts = %d, want >= 100", result.UsableHosts)
-				}
-			case "Servers":
-				if result.VLAN != 103 {
-					t.Errorf("Servers VLAN = %d, want 103", result.VLAN)
-				}
-				// Should be /27 as specified
-				if result.Prefix != 27 {
-					t.Errorf("Servers prefix = %d, want 27", result.Prefix)
+		// Get the network info from any category (they should have the same VLAN and Subnet)
+		var networkInfo SubnetResult
+		for _, result := range categories {
+			networkInfo = result
+			break
+		}
+
+		// Verify VLAN assignments and basic subnet info
+		switch expectedName {
+		case "Management":
+			if networkInfo.VLAN != 101 {
+				t.Errorf("Management VLAN = %d, want 101", networkInfo.VLAN)
+			}
+			// Should be /27 (30 usable hosts)
+			if networkInfo.Prefix != 27 {
+				t.Errorf("Management prefix = %d, want 27", networkInfo.Prefix)
+			}
+			// Check for available IP space
+			if available, ok := categories["Available"]; ok {
+				if available.TotalIPs < 30 {
+					t.Errorf("Management available IPs = %d, want >= 30", available.TotalIPs)
 				}
 			}
-		}
-	}
-
-	// Check that all expected subnets were found
-	for name, found := range expectedSubnets {
-		if !found {
-			t.Errorf("Expected subnet %s not found in results", name)
+		case "Users":
+			if networkInfo.VLAN != 102 {
+				t.Errorf("Users VLAN = %d, want 102", networkInfo.VLAN)
+			}
+			// Should be /25 (126 usable hosts)
+			if networkInfo.Prefix != 25 {
+				t.Errorf("Users prefix = %d, want 25", networkInfo.Prefix)
+			}
+			// Check for available IP space
+			if available, ok := categories["Available"]; ok {
+				if available.TotalIPs < 100 {
+					t.Errorf("Users available IPs = %d, want >= 100", available.TotalIPs)
+				}
+			}
+		case "Servers":
+			if networkInfo.VLAN != 103 {
+				t.Errorf("Servers VLAN = %d, want 103", networkInfo.VLAN)
+			}
+			// Should be /27 as specified
+			if networkInfo.Prefix != 27 {
+				t.Errorf("Servers prefix = %d, want 27", networkInfo.Prefix)
+			}
 		}
 	}
 }

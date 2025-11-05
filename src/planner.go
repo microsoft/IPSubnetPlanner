@@ -77,15 +77,14 @@ func planSingleNetwork(network Network) ([]SubnetResult, error) {
 		subnetIP := uint32ToIP(currentIP)
 		subnetCIDR := fmt.Sprintf("%s/%d", subnetIP.String(), req.prefix)
 
-		// Calculate subnet details
-		result := calculateSubnetDetails(req.subnet.Name, req.subnet.VLAN, subnetCIDR, req.prefix)
-
 		// Handle IP assignments if specified
 		if len(req.subnet.IPAssignments) > 0 {
 			assignmentResults := processIPAssignments(req.subnet, subnetCIDR, req.prefix)
 			results = append(results, assignmentResults...)
 		} else {
-			results = append(results, result)
+			// For subnets without IP assignments, create basic entries
+			basicResults := createBasicSubnetEntries(req.subnet, subnetCIDR, req.prefix)
+			results = append(results, basicResults...)
 		}
 
 		currentIP += req.size
@@ -170,29 +169,251 @@ func calculateSubnetDetails(name string, vlan int, cidr string, prefix int) Subn
 }
 
 func processIPAssignments(subnet Subnet, cidr string, prefix int) []SubnetResult {
-	// TODO: Implement IP assignment logic
-	// This would handle the IPAssignments array and create detailed results
-	// For now, return basic subnet info
-	return []SubnetResult{calculateSubnetDetails(subnet.Name, subnet.VLAN, cidr, prefix)}
+	var results []SubnetResult
+
+	_, ipNet, _ := net.ParseCIDR(cidr)
+	networkIP := ipNet.IP.Mask(ipNet.Mask)
+	networkInt := ipToUint32(networkIP)
+
+	// Calculate subnet mask
+	mask := net.CIDRMask(prefix, 32)
+
+	// Create a map to track assigned positions
+	assignedPositions := make(map[int]bool)
+
+	// Add network address entry
+	results = append(results, SubnetResult{
+		Subnet:   cidr,
+		Name:     subnet.Name,
+		VLAN:     subnet.VLAN,
+		Label:    "Network",
+		IP:       networkIP.String(),
+		TotalIPs: 1,
+		Prefix:   prefix,
+		Mask:     fmt.Sprintf("%d.%d.%d.%d", mask[0], mask[1], mask[2], mask[3]),
+		Category: "Network",
+	})
+
+	// Sort assignments by position for consistent ordering
+	sort.Slice(subnet.IPAssignments, func(i, j int) bool {
+		return subnet.IPAssignments[i].Position < subnet.IPAssignments[j].Position
+	})
+
+	// Process IP assignments
+	totalIPs := 1 << (32 - prefix)
+	for _, assignment := range subnet.IPAssignments {
+		var assignedIP net.IP
+		position := assignment.Position
+
+		// Handle negative positions (count from end)
+		if position < 0 {
+			// Negative positions count backwards from broadcast
+			if prefix == 32 {
+				assignedIP = networkIP
+			} else if prefix == 31 {
+				assignedIP = uint32ToIP(networkInt + uint32(totalIPs) + uint32(position))
+			} else {
+				assignedIP = uint32ToIP(networkInt + uint32(totalIPs) - 1 + uint32(position))
+			}
+		} else if position == 0 {
+			// Position 0 means use the network address (for /32 and special cases)
+			assignedIP = networkIP
+		} else {
+			// Positive positions
+			assignedIP = uint32ToIP(networkInt + uint32(position))
+		}
+
+		assignedPositions[position] = true
+
+		results = append(results, SubnetResult{
+			Subnet:   cidr,
+			Name:     subnet.Name,
+			VLAN:     subnet.VLAN,
+			Label:    assignment.Name,
+			IP:       assignedIP.String(),
+			TotalIPs: 1,
+			Prefix:   prefix,
+			Mask:     fmt.Sprintf("%d.%d.%d.%d", mask[0], mask[1], mask[2], mask[3]),
+			Category: "Assignment",
+		})
+	}
+
+	// Add unused ranges
+	if prefix < 31 {
+		// Find gaps in assignments and mark as unused
+		usedIPs := make(map[uint32]bool)
+
+		// Mark network address
+		usedIPs[networkInt] = true
+
+		// Mark assigned IPs
+		for _, assignment := range subnet.IPAssignments {
+			position := assignment.Position
+			var assignedInt uint32
+
+			if position < 0 {
+				if prefix == 31 {
+					assignedInt = networkInt + uint32(totalIPs) + uint32(position)
+				} else {
+					assignedInt = networkInt + uint32(totalIPs) - 1 + uint32(position)
+				}
+			} else if position == 0 {
+				assignedInt = networkInt
+			} else {
+				assignedInt = networkInt + uint32(position)
+			}
+			usedIPs[assignedInt] = true
+		}
+
+		// Mark broadcast (for non-/31 and non-/32)
+		broadcastInt := networkInt + uint32(totalIPs) - 1
+		if prefix < 31 {
+			usedIPs[broadcastInt] = true
+		}
+
+		// Find continuous unused ranges
+		rangeStart := -1
+		for i := 1; i < totalIPs-1; i++ { // Skip network (0) and broadcast (totalIPs-1)
+			currentIP := networkInt + uint32(i)
+			if !usedIPs[currentIP] {
+				if rangeStart == -1 {
+					rangeStart = i
+				}
+			} else {
+				if rangeStart != -1 {
+					// End of unused range
+					addUnusedRange(&results, subnet, cidr, prefix, mask, networkInt, rangeStart, i-1)
+					rangeStart = -1
+				}
+			}
+		}
+
+		// Handle final unused range
+		if rangeStart != -1 {
+			addUnusedRange(&results, subnet, cidr, prefix, mask, networkInt, rangeStart, totalIPs-2)
+		}
+
+		// Add broadcast entry
+		results = append(results, SubnetResult{
+			Subnet:   cidr,
+			Name:     subnet.Name,
+			VLAN:     subnet.VLAN,
+			Label:    "Broadcast",
+			IP:       uint32ToIP(broadcastInt).String(),
+			TotalIPs: 1,
+			Prefix:   prefix,
+			Mask:     fmt.Sprintf("%d.%d.%d.%d", mask[0], mask[1], mask[2], mask[3]),
+			Category: "Broadcast",
+		})
+	}
+
+	return results
+}
+
+func addUnusedRange(results *[]SubnetResult, subnet Subnet, cidr string, prefix int, mask net.IPMask, networkInt uint32, start, end int) {
+	startIP := uint32ToIP(networkInt + uint32(start))
+	endIP := uint32ToIP(networkInt + uint32(end))
+
+	var label string
+	count := end - start + 1
+	if count == 1 {
+		label = "Unused"
+	} else {
+		label = "Unused Range"
+	}
+
+	var ip string
+	if count == 1 {
+		ip = startIP.String()
+	} else {
+		ip = fmt.Sprintf("%s - %s", startIP.String(), endIP.String())
+	}
+
+	*results = append(*results, SubnetResult{
+		Subnet:   cidr,
+		Name:     subnet.Name,
+		VLAN:     subnet.VLAN,
+		Label:    label,
+		IP:       ip,
+		TotalIPs: count,
+		Prefix:   prefix,
+		Mask:     fmt.Sprintf("%d.%d.%d.%d", mask[0], mask[1], mask[2], mask[3]),
+		Category: "Unused",
+	})
 }
 
 func calculateAvailableSpace(start, end uint32, parentPrefix int) []SubnetResult {
 	var results []SubnetResult
 
-	// Simple implementation - mark remaining space as available
-	if start < end {
-		remainingSize := end - start
-		prefix := 32 - int(math.Log2(float64(remainingSize)))
-		cidr := fmt.Sprintf("%s/%d", uint32ToIP(start).String(), prefix)
+	current := start
+	for current < end {
+		// Find the largest power-of-2 block that fits
+		remainingSize := end - current
+
+		// Find largest power of 2 that fits and is aligned
+		blockSize := uint32(1)
+		maxBlockSize := remainingSize
+
+		// Ensure alignment - block must start at multiple of its size
+		for blockSize <= maxBlockSize && (current%blockSize == 0) {
+			if blockSize*2 <= maxBlockSize && (current%(blockSize*2) == 0) {
+				blockSize *= 2
+			} else {
+				break
+			}
+		}
+
+		// Calculate prefix for this block
+		prefix := 32 - int(math.Log2(float64(blockSize)))
+		if prefix > 32 {
+			prefix = 32
+		}
+
+		// Calculate actual usable addresses in this block
+		usableCount := int(blockSize)
+		if prefix < 31 {
+			usableCount -= 2 // subtract network and broadcast
+		}
+		if usableCount < 0 {
+			usableCount = 0
+		}
+
+		startIP := uint32ToIP(current)
+		var label, ip string
+
+		if blockSize == 1 {
+			label = "Available"
+			ip = startIP.String()
+		} else {
+			label = "Available Range"
+			endIP := uint32ToIP(current + blockSize - 1)
+			if prefix < 31 {
+				// Show usable range (exclude network and broadcast)
+				firstUsable := uint32ToIP(current + 1)
+				lastUsable := uint32ToIP(current + blockSize - 2)
+				ip = fmt.Sprintf("%s - %s", firstUsable.String(), lastUsable.String())
+			} else {
+				ip = fmt.Sprintf("%s - %s", startIP.String(), endIP.String())
+			}
+		}
+
+		// Calculate subnet mask
+		mask := net.CIDRMask(prefix, 32)
 
 		result := SubnetResult{
+			Subnet:   fmt.Sprintf("%s/%d", startIP.String(), prefix),
 			Name:     "Available",
-			Subnet:   cidr,
+			VLAN:     0,
+			Label:    label,
+			IP:       ip,
+			TotalIPs: usableCount,
 			Prefix:   prefix,
-			Network:  uint32ToIP(start).String(),
-			TotalIPs: int(remainingSize),
+			Mask:     fmt.Sprintf("%d.%d.%d.%d", mask[0], mask[1], mask[2], mask[3]),
+			Category: "Available",
 		}
 		results = append(results, result)
+
+		current += blockSize
 	}
 
 	return results
@@ -208,4 +429,102 @@ func uint32ToIP(n uint32) net.IP {
 	ip := make(net.IP, 4)
 	binary.BigEndian.PutUint32(ip, n)
 	return ip
+}
+
+func createBasicSubnetEntries(subnet Subnet, cidr string, prefix int) []SubnetResult {
+	var results []SubnetResult
+
+	_, ipNet, _ := net.ParseCIDR(cidr)
+	networkIP := ipNet.IP.Mask(ipNet.Mask)
+	networkInt := ipToUint32(networkIP)
+	totalIPs := 1 << (32 - prefix)
+
+	// Calculate subnet mask
+	mask := net.CIDRMask(prefix, 32)
+
+	// Add network address entry
+	results = append(results, SubnetResult{
+		Subnet:   cidr,
+		Name:     subnet.Name,
+		VLAN:     subnet.VLAN,
+		Label:    "Network",
+		IP:       networkIP.String(),
+		TotalIPs: 1,
+		Prefix:   prefix,
+		Mask:     fmt.Sprintf("%d.%d.%d.%d", mask[0], mask[1], mask[2], mask[3]),
+		Category: "Network",
+	})
+
+	// Add usable range for normal subnets
+	if prefix < 31 {
+		firstUsable := uint32ToIP(networkInt + 1)
+		lastUsable := uint32ToIP(networkInt + uint32(totalIPs) - 2)
+		usableCount := totalIPs - 2
+
+		var label, ip string
+		if usableCount == 1 {
+			label = "Available"
+			ip = firstUsable.String()
+		} else {
+			label = "Available Range"
+			ip = fmt.Sprintf("%s - %s", firstUsable.String(), lastUsable.String())
+		}
+
+		results = append(results, SubnetResult{
+			Subnet:   cidr,
+			Name:     subnet.Name,
+			VLAN:     subnet.VLAN,
+			Label:    label,
+			IP:       ip,
+			TotalIPs: usableCount,
+			Prefix:   prefix,
+			Mask:     fmt.Sprintf("%d.%d.%d.%d", mask[0], mask[1], mask[2], mask[3]),
+			Category: "Available",
+		})
+
+		// Add broadcast entry
+		broadcastIP := uint32ToIP(networkInt + uint32(totalIPs) - 1)
+		results = append(results, SubnetResult{
+			Subnet:   cidr,
+			Name:     subnet.Name,
+			VLAN:     subnet.VLAN,
+			Label:    "Broadcast",
+			IP:       broadcastIP.String(),
+			TotalIPs: 1,
+			Prefix:   prefix,
+			Mask:     fmt.Sprintf("%d.%d.%d.%d", mask[0], mask[1], mask[2], mask[3]),
+			Category: "Broadcast",
+		})
+	} else if prefix == 31 {
+		// /31 networks have two usable addresses
+		firstIP := networkIP
+		secondIP := uint32ToIP(networkInt + 1)
+
+		results = append(results, SubnetResult{
+			Subnet:   cidr,
+			Name:     subnet.Name,
+			VLAN:     subnet.VLAN,
+			Label:    "Available Range",
+			IP:       fmt.Sprintf("%s - %s", firstIP.String(), secondIP.String()),
+			TotalIPs: 2,
+			Prefix:   prefix,
+			Mask:     fmt.Sprintf("%d.%d.%d.%d", mask[0], mask[1], mask[2], mask[3]),
+			Category: "Available",
+		})
+	} else {
+		// /32 networks have one usable address
+		results = append(results, SubnetResult{
+			Subnet:   cidr,
+			Name:     subnet.Name,
+			VLAN:     subnet.VLAN,
+			Label:    "Available",
+			IP:       networkIP.String(),
+			TotalIPs: 1,
+			Prefix:   prefix,
+			Mask:     fmt.Sprintf("%d.%d.%d.%d", mask[0], mask[1], mask[2], mask[3]),
+			Category: "Available",
+		})
+	}
+
+	return results
 }

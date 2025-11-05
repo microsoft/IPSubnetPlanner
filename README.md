@@ -22,11 +22,11 @@ Fast, zero‑friction IP subnet planning from a simple JSON file. No spreadsheet
 3. (Linux/macOS) Make it executable: `chmod +x ipsubnetplanner*`
 4. Run with the provided example (prints table + writes plan.md):
   ```bash
-  ./ipsubnetplanner -f examples/simple.json
+  ./ipsubnetplanner -input examples/simple.json
   ```
 5. (Optional) Opt-in exports (you must give filenames for JSON / CSV):
   ```bash
-  ./ipsubnetplanner -f examples/simple.json -json plan.json -csv plan.csv -md report.md
+  ./ipsubnetplanner -input examples/simple.json -exportjson plan.json -exportcsv plan.csv -exportmd report.md
   ```
 
 Need to customize? Create your own JSON (see use cases below).
@@ -38,7 +38,7 @@ Need to customize? Create your own JSON (see use cases below).
 ```mermaid
 flowchart TD
     A[User runs ipsubnetplanner] --> B{Input Method}
-    B -->|JSON file| C[-f config.json]
+    B -->|JSON file| C[-input config.json]
     B -->|CLI flags| D[-network -hosts -cidr]
     C --> E[Network Definitions]
     D --> E
@@ -77,13 +77,13 @@ flowchart LR
     Results --> CSV{CSV}
     
     MD -->|Always on| MD1[plan.md ✓]
-    MD -->|Can disable<br/>-md=""| MD2[Skipped]
+    MD -->|Can disable<br/>-exportmd=""| MD2[Skipped]
     
     JSON -->|Off by default| JSON1[No file]
-    JSON -->|Opt-in<br/>-json file.json| JSON2[file.json ✓]
+    JSON -->|Opt-in<br/>-exportjson file.json| JSON2[file.json ✓]
     
     CSV -->|Off by default| CSV1[No file]
-    CSV -->|Opt-in<br/>-csv file.csv| CSV2[file.csv ✓]
+    CSV -->|Opt-in<br/>-exportcsv file.csv| CSV2[file.csv ✓]
     
     style MD1 fill:#e0ffe8,stroke:#55aa55
     style JSON2 fill:#e8f4ff,stroke:#4a90e2
@@ -115,7 +115,7 @@ flowchart LR
 ```
 Run (table + plan.md):
 ```bash
-./ipsubnetplanner -f single.json
+./ipsubnetplanner -input single.json
 ```
 Sample Output:
 ```
@@ -150,7 +150,7 @@ Available          192.168.1.192/26   26      192.168.1.193   192.168.1.254   62
 ```
 Opt-in exports:
 ```bash
-./ipsubnetplanner -f advanced.json -json plan.json -csv plan.csv -md plan.md
+./ipsubnetplanner -input advanced.json -exportjson plan.json -exportcsv plan.csv -exportmd plan.md
 ```
 Excerpt (Markdown):
 ```
@@ -189,7 +189,7 @@ Excerpt (Markdown):
 ```
 Run:
 ```bash
-./ipsubnetplanner -f multi-network.json
+./ipsubnetplanner -input multi-network.json
 ```
 
 ---
@@ -218,14 +218,26 @@ Rules:
 * Remaining space reported as "Available"
 
 ## Commands
+
+**Recommended (new intuitive flag names):**
 ```bash
-ipsubnetplanner -f config.json                # table + plan.md
-ipsubnetplanner -f config.json -md design.md  # override markdown filename
-ipsubnetplanner -f config.json -md=""         # disable markdown export
-ipsubnetplanner -f config.json -json out.json # enable JSON export
-ipsubnetplanner -f config.json -csv out.csv   # enable CSV export
-ipsubnetplanner -f config.json -json out.json -csv out.csv -md report.md
+ipsubnetplanner -input config.json                          # table + plan.md
+ipsubnetplanner -input config.json -exportmd design.md      # override markdown filename
+ipsubnetplanner -input config.json -exportmd=""             # disable markdown export
+ipsubnetplanner -input config.json -exportjson out.json     # enable JSON export
+ipsubnetplanner -input config.json -exportcsv out.csv       # enable CSV export
+ipsubnetplanner -input config.json -exportjson out.json -exportcsv out.csv -exportmd report.md
 ipsubnetplanner -version
+```
+
+**Legacy (still supported for backward compatibility):**
+```bash
+ipsubnetplanner -f config.json                              # table + plan.md
+ipsubnetplanner -f config.json -md design.md                # override markdown filename
+ipsubnetplanner -f config.json -md=""                       # disable markdown export
+ipsubnetplanner -f config.json -json out.json               # enable JSON export
+ipsubnetplanner -f config.json -csv out.csv                 # enable CSV export
+ipsubnetplanner -f config.json -json out.json -csv out.csv -md report.md
 ```
 
 ## Build From Source

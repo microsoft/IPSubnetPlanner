@@ -1,0 +1,98 @@
+[
+  {
+    "network": "10.1.0.0/24",
+    "subnets": [
+      {
+        "name": "WebServers",
+        "vlan": 10,
+        "cidr": 28,
+        "IPAssignments": [
+          { "Name": "Gateway", "Position": 1 },
+          { "Name": "LoadBalancer", "Position": 2 },
+          { "Name": "Web1", "Position": 10 },
+          { "Name": "Web2", "Position": 11 },
+          { "Name": "Web3", "Position": 12 }
+        ]
+      },
+      {
+        "name": "DatabaseServers",
+        "vlan": 20,
+        "cidr": 29,
+        "IPAssignments": [
+          { "Name": "Gateway", "Position": 1 },
+          { "Name": "DB-Primary", "Position": 2 },
+          { "Name": "DB-Secondary", "Position": 3 }
+        ]
+      },
+      {
+        "name": "Management",
+        "vlan": 100,
+        "hosts": 10
+      }
+    ]
+  },
+  {
+    "network": "192.168.50.0/24",
+    "subnets": [
+      {
+        "name": "IoT-Devices",
+        "vlan": 50,
+        "cidr": 26,
+        "IPAssignments": [
+          { "Name": "Gateway", "Position": 1 },
+          { "Name": "Controller", "Position": 2 },
+          { "Name": "Sensor1", "Position": 10 },
+          { "Name": "Sensor2", "Position": 11 },
+          { "Name": "Camera1", "Position": 20 },
+          { "Name": "Camera2", "Position": 21 }
+        ]
+      },
+      {
+        "name": "Point-to-Point-Links",
+        "vlan": 0,
+        "cidr": 31,
+        "IPAssignments": [
+          { "Name": "Router-A", "Position": 0 },
+          { "Name": "Router-B", "Position": 1 }
+        ]
+      },
+      {
+        "name": "Loopback-Router1",
+        "vlan": 0,
+        "cidr": 32,
+        "IPAssignments": [
+          { "Name": "Router1-LB", "Position": 0 }
+        ]
+      }
+    ]
+  },
+  {
+    "network": "172.20.0.0/23",
+    "subnets": [
+      {
+        "name": "UserVLAN-Finance",
+        "vlan": 200,
+        "hosts": 100
+      },
+      {
+        "name": "UserVLAN-Engineering", 
+        "vlan": 201,
+        "hosts": 200
+      },
+      {
+        "name": "Servers-DMZ",
+        "vlan": 300,
+        "cidr": 27,
+        "IPAssignments": [
+          { "Name": "Gateway", "Position": 1 },
+          { "Name": "Firewall-Inside", "Position": 2 },
+          { "Name": "PublicWeb1", "Position": 10 },
+          { "Name": "PublicWeb2", "Position": 11 },
+          { "Name": "Email-Server", "Position": 20 },
+          { "Name": "DNS-Primary", "Position": 30 },
+          { "Name": "DNS-Secondary", "Position": 31 }
+        ]
+      }
+    ]
+  }
+]

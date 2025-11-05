@@ -23,6 +23,7 @@ output/
 !examples/multi-network*.json
 !README.md
 !docs/*.md
+!.github/agents/*.md
 
 # IDE
 .vscode/

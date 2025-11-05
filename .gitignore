@@ -21,6 +21,7 @@ output/
 !examples/simple.json
 !examples/advanced.json
 !examples/multi-network*.json
+!examples/building25-test.json
 !README.md
 !docs/*.md
 !.github/agents/*.md

@@ -1,0 +1,69 @@
+{
+  "network": "10.25.0.0/16",
+  "subnets": [
+    {
+      "name": "Management",
+      "vlan": 100,
+      "cidr": 24,
+      "IPAssignments": [
+        { "Name": "Gateway", "Position": 1 },
+        { "Name": "DNS-Primary", "Position": 2 },
+        { "Name": "DNS-Secondary", "Position": 3 },
+        { "Name": "Domain-Controller", "Position": 10 },
+        { "Name": "DHCP-Server", "Position": 11 },
+        { "Name": "File-Server", "Position": 20 },
+        { "Name": "Backup-Server", "Position": 21 }
+      ]
+    },
+    {
+      "name": "User-Workstations",
+      "vlan": 101,
+      "hosts": 200,
+      "IPAssignments": [
+        { "Name": "Gateway", "Position": 1 },
+        { "Name": "DHCP-Start", "Position": 10 },
+        { "Name": "Print-Server", "Position": 5 }
+      ]
+    },
+    {
+      "name": "Servers",
+      "vlan": 102,
+      "cidr": 25,
+      "IPAssignments": [
+        { "Name": "Gateway", "Position": 1 },
+        { "Name": "Web-Server-1", "Position": 10 },
+        { "Name": "Web-Server-2", "Position": 11 },
+        { "Name": "App-Server-1", "Position": 20 },
+        { "Name": "App-Server-2", "Position": 21 },
+        { "Name": "DB-Server-Primary", "Position": 30 },
+        { "Name": "DB-Server-Secondary", "Position": 31 },
+        { "Name": "Monitoring", "Position": 50 },
+        { "Name": "Backup-Gateway", "Position": -1 }
+      ]
+    },
+    {
+      "name": "VoIP",
+      "vlan": 103,
+      "hosts": 100,
+      "IPAssignments": [
+        { "Name": "Gateway", "Position": 1 },
+        { "Name": "PBX-System", "Position": 10 },
+        { "Name": "Voice-Gateway", "Position": 11 }
+      ]
+    },
+    {
+      "name": "Guest-WiFi",
+      "vlan": 104,
+      "cidr": 26
+    },
+    {
+      "name": "IoT-Devices",
+      "vlan": 105,
+      "hosts": 50,
+      "IPAssignments": [
+        { "Name": "Gateway", "Position": 1 },
+        { "Name": "IoT-Controller", "Position": 10 }
+      ]
+    }
+  ]
+}

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -275,11 +276,19 @@ func TestIntegration_MultiNetworkExample(t *testing.T) {
 		if result.Name == "Available" {
 			continue
 		}
-		// Group by subnet first two octets to identify different networks
-		if len(result.Subnet) >= 7 {
-			// Extract prefix like "10.1." from "10.1.0.0/26"
-			parts := result.Subnet[:7] // e.g., "10.1.0."
-			networkPrefixes[parts]++
+		// Extract network prefix from subnet CIDR (e.g., "10.1." from "10.1.0.0/26")
+		if result.Subnet != "" {
+			// Split on '/' to get just the IP part
+			parts := strings.Split(result.Subnet, "/")
+			if len(parts) > 0 {
+				// Split the IP into octets
+				octets := strings.Split(parts[0], ".")
+				if len(octets) >= 2 {
+					// Use first two octets to identify network (e.g., "10.1")
+					prefix := octets[0] + "." + octets[1]
+					networkPrefixes[prefix]++
+				}
+			}
 		}
 	}
 

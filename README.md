@@ -13,6 +13,7 @@ Fast, zero‑friction IP subnet planning from a simple JSON file. No spreadsheet
 * Optimal packing (largest first) + remaining space summary
 * Optional VLAN IDs & named IP assignments
 * Multi‑network (array) input
+* **Detailed console preview** showing all IP assignments and breakdowns
 * Markdown export by default (plan.md)
 * Opt-in JSON / CSV (only if you supply filenames)
 
@@ -20,7 +21,7 @@ Fast, zero‑friction IP subnet planning from a simple JSON file. No spreadsheet
 1. Go to Releases: https://github.com/microsoft/IPSubnetPlanner/releases
 2. Download the latest binary for your OS (Windows / Linux / macOS)
 3. (Linux/macOS) Make it executable: `chmod +x ipsubnetplanner*`
-4. Run with the provided example (prints table + writes plan.md):
+4. Run with the provided example (prints detailed table + writes plan.md):
   ```bash
   ./ipsubnetplanner -input examples/simple.json
   ```
@@ -94,6 +95,7 @@ flowchart LR
 **Key Points:**
 * **Input flexibility**: JSON file or inline CLI flags (`-network`, `-hosts`, `-cidr`)
 * **Smart allocation**: Largest subnets first to minimize fragmentation
+* **Detailed console output**: Shows all IP assignments, ranges, and categories in terminal
 * **Default export**: Markdown always created unless explicitly disabled
 * **Opt-in exports**: JSON/CSV only generated when you specify filenames
 
@@ -119,11 +121,18 @@ Run (table + plan.md):
 ```
 Sample Output:
 ```
-Name         VLAN  Subnet             Prefix  FirstHost       LastHost        UsableHosts
-Users        102   192.168.1.0/25     25      192.168.1.1     192.168.1.126   126
-Management   101   192.168.1.128/27   27      192.168.1.129   192.168.1.158   30
-Servers      103   192.168.1.160/27   27      192.168.1.161   192.168.1.190   30
-Available          192.168.1.192/26   26      192.168.1.193   192.168.1.254   62
+Subnet               Name                      VLAN   Label                IP              TotalIPs   Prefix   Category       
+------               ----                      ----   -----                --              --------   ------   --------
+192.168.1.0/25       Users                     102    Network              192.168.1.0     1          /25      Network
+192.168.1.0/25       Users                     102    Available Range      192.168.1.1-126 126        /25      Available
+192.168.1.0/25       Users                     102    Broadcast            192.168.1.127   1          /25      Broadcast
+192.168.1.128/27     Management                101    Network              192.168.1.128   1          /27      Network
+192.168.1.128/27     Management                101    Available Range      192.168.1.129-158 30       /27      Available
+192.168.1.128/27     Management                101    Broadcast            192.168.1.159   1          /27      Broadcast
+192.168.1.160/27     Servers                   103    Network              192.168.1.160   1          /27      Network
+192.168.1.160/27     Servers                   103    Available Range      192.168.1.161-190 30       /27      Available
+192.168.1.160/27     Servers                   103    Broadcast            192.168.1.191   1          /27      Broadcast
+192.168.1.192/26     Available                 -      Available Range      192.168.1.193-254 62       /26      Available
 ```
 
 ### 2. VLAN + Named IP Assignments
@@ -152,11 +161,21 @@ Opt-in exports:
 ```bash
 ./ipsubnetplanner -input advanced.json -exportjson plan.json -exportcsv plan.csv -exportmd plan.md
 ```
-Excerpt (Markdown):
+Console Output shows detailed IP assignments:
 ```
-| Name       | VLAN | Subnet      | Gateway    | DNS1       | DNS2       | LastHost   |
-|------------|------|-------------|------------|------------|------------|------------|
-| Management | 100  | 10.0.0.0/28 | 10.0.0.1   | 10.0.0.2   | 10.0.0.3   | 10.0.0.14  |
+Subnet               Name                      VLAN   Label                IP              TotalIPs   Prefix   Category       
+------               ----                      ----   -----                --              --------   ------   --------
+10.0.0.128/28        Management                110    Network              10.0.0.128      1          /28      Network
+10.0.0.128/28        Management                110    Gateway              10.0.0.129      1          /28      Assignment
+10.0.0.128/28        Management                110    DNS1                 10.0.0.130      1          /28      Assignment
+10.0.0.128/28        Management                110    DNS2                 10.0.0.131      1          /28      Assignment
+10.0.0.128/28        Management                110    LastHost             10.0.0.142      1          /28      Assignment
+```
+CSV Export:
+```
+Subnet,Name,Vlan,Label,IP,TotalIPs,Prefix,Mask,Category
+10.0.0.128/28,Management,110,Gateway,10.0.0.129,1,/28,255.255.255.240,Assignment
+10.0.0.128/28,Management,110,DNS1,10.0.0.130,1,/28,255.255.255.240,Assignment
 ```
 
 ### 3. Multi‑Network Planning
@@ -217,27 +236,28 @@ Rules:
 * Largest required subnets allocated first
 * Remaining space reported as "Available"
 
+## Console Output
+The tool displays a detailed table in the terminal showing **exactly the same data** as the export files:
+- **Network entries**: Base network address and subnet mask
+- **Assignment entries**: Individual IP assignments with their names/purposes
+- **Available entries**: IP ranges available for future use
+- **Broadcast entries**: Broadcast addresses
+- **Unused entries**: Gaps between assignments
+
+This eliminates confusion between terminal preview and export files - what you see is what you get!
+
 ## Commands
 
-**Recommended (new intuitive flag names):**
 ```bash
-ipsubnetplanner -input config.json                          # table + plan.md
+ipsubnetplanner -input config.json                          # detailed table + plan.md
 ipsubnetplanner -input config.json -exportmd design.md      # override markdown filename
 ipsubnetplanner -input config.json -exportmd=""             # disable markdown export
 ipsubnetplanner -input config.json -exportjson out.json     # enable JSON export
 ipsubnetplanner -input config.json -exportcsv out.csv       # enable CSV export
 ipsubnetplanner -input config.json -exportjson out.json -exportcsv out.csv -exportmd report.md
+ipsubnetplanner -network 192.168.1.0/24 -hosts 50:2,10:3   # CLI input with host requirements
+ipsubnetplanner -network 10.0.0.0/16 -cidr 26:2,28:1       # CLI input with fixed CIDR sizes
 ipsubnetplanner -version
-```
-
-**Legacy (still supported for backward compatibility):**
-```bash
-ipsubnetplanner -f config.json                              # table + plan.md
-ipsubnetplanner -f config.json -md design.md                # override markdown filename
-ipsubnetplanner -f config.json -md=""                       # disable markdown export
-ipsubnetplanner -f config.json -json out.json               # enable JSON export
-ipsubnetplanner -f config.json -csv out.csv                 # enable CSV export
-ipsubnetplanner -f config.json -json out.json -csv out.csv -md report.md
 ```
 
 ## Build From Source

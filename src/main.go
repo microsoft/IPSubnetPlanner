@@ -81,47 +81,7 @@ func main() {
 	exportMD := flag.String("exportmd", "plan.md", "Export to Markdown file (default plan.md; set empty to disable)")
 	showVersion := flag.Bool("version", false, "Print version and exit")
 
-	// Legacy flag support for backward compatibility
-	configFile := flag.String("f", "", "Path to JSON configuration file (deprecated: use -input)")
-	jsonOutput := flag.String("json", "", "Export to JSON file (deprecated: use -exportjson)")
-	csvOutput := flag.String("csv", "", "Export to CSV file (deprecated: use -exportcsv)")
-	mdOutput := flag.String("md", "", "Export to Markdown file (deprecated: use -exportmd)")
-
-	// Legacy compatibility: drop leading 'plan'
-	if len(os.Args) > 1 && os.Args[1] == "plan" {
-		os.Args = append([]string{os.Args[0]}, os.Args[2:]...)
-	}
-
 	flag.Parse()
-
-	// Handle flag compatibility - prefer new flags, fall back to legacy ones
-	var finalInputFile, finalJSONOutput, finalCSVOutput, finalMDOutput string
-
-	if *inputFile != "" {
-		finalInputFile = *inputFile
-	} else if *configFile != "" {
-		finalInputFile = *configFile
-	}
-
-	if *exportJSON != "" {
-		finalJSONOutput = *exportJSON
-	} else if *jsonOutput != "" {
-		finalJSONOutput = *jsonOutput
-	}
-
-	if *exportCSV != "" {
-		finalCSVOutput = *exportCSV
-	} else if *csvOutput != "" {
-		finalCSVOutput = *csvOutput
-	}
-
-	if *exportMD != "" {
-		finalMDOutput = *exportMD
-	} else if *mdOutput != "" {
-		finalMDOutput = *mdOutput
-	} else {
-		finalMDOutput = "plan.md" // default
-	}
 
 	if *showVersion {
 		fmt.Println("IPSubnetPlanner version", version)
@@ -130,8 +90,8 @@ func main() {
 
 	var networks []Network
 
-	if finalInputFile != "" {
-		data, err := os.ReadFile(finalInputFile)
+	if *inputFile != "" {
+		data, err := os.ReadFile(*inputFile)
 		if err != nil {
 			fatal(fmt.Sprintf("error reading config file: %v", err))
 		}
@@ -182,28 +142,28 @@ func main() {
 	PrintTable(results)
 
 	// Exports
-	if finalJSONOutput != "" {
-		ensureDir(finalJSONOutput)
-		if err := ExportJSON(results, finalJSONOutput); err != nil {
+	if *exportJSON != "" {
+		ensureDir(*exportJSON)
+		if err := ExportJSON(results, *exportJSON); err != nil {
 			fmt.Fprintf(os.Stderr, "error exporting JSON: %v\n", err)
 		} else {
-			fmt.Printf("\n✓ JSON: %s\n", finalJSONOutput)
+			fmt.Printf("\n✓ JSON: %s\n", *exportJSON)
 		}
 	}
-	if finalCSVOutput != "" {
-		ensureDir(finalCSVOutput)
-		if err := ExportCSV(results, finalCSVOutput); err != nil {
+	if *exportCSV != "" {
+		ensureDir(*exportCSV)
+		if err := ExportCSV(results, *exportCSV); err != nil {
 			fmt.Fprintf(os.Stderr, "error exporting CSV: %v\n", err)
 		} else {
-			fmt.Printf("✓ CSV: %s\n", finalCSVOutput)
+			fmt.Printf("✓ CSV: %s\n", *exportCSV)
 		}
 	}
-	if finalMDOutput != "" {
-		ensureDir(finalMDOutput)
-		if err := ExportMarkdown(results, finalMDOutput); err != nil {
+	if *exportMD != "" {
+		ensureDir(*exportMD)
+		if err := ExportMarkdown(results, *exportMD); err != nil {
 			fmt.Fprintf(os.Stderr, "error exporting Markdown: %v\n", err)
 		} else {
-			fmt.Printf("✓ Markdown: %s\n", finalMDOutput)
+			fmt.Printf("✓ Markdown: %s\n", *exportMD)
 		}
 	}
 }
@@ -224,13 +184,12 @@ func validateBareOutputFlags() {
 	}
 	for i := 0; i < len(os.Args); i++ {
 		arg := os.Args[i]
-		// Support both old and new flag names
-		if arg == "-json" || arg == "--json" || arg == "-csv" || arg == "--csv" || arg == "-md" || arg == "--md" ||
-			arg == "-exportjson" || arg == "--exportjson" || arg == "-exportcsv" || arg == "--exportcsv" || arg == "-exportmd" || arg == "--exportmd" {
+		// Check for export flags without values
+		if arg == "-exportjson" || arg == "--exportjson" || arg == "-exportcsv" || arg == "--exportcsv" || arg == "-exportmd" || arg == "--exportmd" {
 			// If next token missing or starts with '-' then it's bare.
 			if i+1 >= len(os.Args) || strings.HasPrefix(os.Args[i+1], "-") {
 				// Tailor message: markdown has a default; json/csv are disabled until filename provided.
-				if arg == "-md" || arg == "--md" || arg == "-exportmd" || arg == "--exportmd" {
+				if arg == "-exportmd" || arg == "--exportmd" {
 					fmt.Fprintf(os.Stderr, "Error: %s requires a filename (or use %s=\"\" to disable). Default is plan.md if you omit the flag entirely.\n", arg, arg)
 					fmt.Fprintf(os.Stderr, "Tip: Just omit %s to get plan.md automatically.\n", arg)
 				} else {

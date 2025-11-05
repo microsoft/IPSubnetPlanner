@@ -86,6 +86,70 @@ func ExportMarkdown(results []SubnetResult, filepath string) error {
 
 // PrintTable prints results as a formatted table to console
 func PrintTable(results []SubnetResult) {
-	fmt.Printf("Generated %d subnet entries\n", len(results))
-	fmt.Println("See exported files for detailed results.")
+	if len(results) == 0 {
+		fmt.Println("No subnets generated.")
+		return
+	}
+
+	fmt.Printf("\nGenerated %d subnet entries:\n\n", len(results))
+
+	// Print header matching CSV format
+	fmt.Printf("%-20s %-25s %-6s %-20s %-15s %-10s %-8s %-15s\n",
+		"Subnet", "Name", "VLAN", "Label", "IP", "TotalIPs", "Prefix", "Category")
+	fmt.Printf("%-20s %-25s %-6s %-20s %-15s %-10s %-8s %-15s\n",
+		"------", "----", "----", "-----", "--", "--------", "------", "--------")
+
+	// Print all results in the same format as CSV
+	for _, result := range results {
+		vlanStr := "-"
+		if result.VLAN > 0 {
+			vlanStr = fmt.Sprintf("%d", result.VLAN)
+		}
+
+		// Handle empty/default values
+		label := result.Label
+		if label == "" {
+			switch result.Category {
+			case "Network":
+				label = "Network"
+			case "Available":
+				if strings.Contains(result.IP, " - ") {
+					label = "Available Range"
+				} else {
+					label = "Available"
+				}
+			case "Broadcast":
+				label = "Broadcast"
+			case "Assignment":
+				label = result.Label // Keep original assignment name
+			case "Unused":
+				if strings.Contains(result.IP, " - ") {
+					label = "Unused Range"
+				} else {
+					label = "Unused"
+				}
+			default:
+				label = result.Category
+			}
+		}
+
+		fmt.Printf("%-20s %-25s %-6s %-20s %-15s %-10d %-8s %-15s\n",
+			result.Subnet,
+			truncate(result.Name, 25),
+			vlanStr,
+			truncate(label, 20),
+			truncate(result.IP, 15),
+			result.TotalIPs,
+			fmt.Sprintf("/%d", result.Prefix),
+			result.Category)
+	}
+
+	fmt.Printf("\nThis matches the detailed format in export files.\n")
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max-3] + "..."
 }
